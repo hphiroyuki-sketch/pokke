@@ -222,8 +222,9 @@ function useServiceWorker() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       const swCode = `
-        const CACHE='pokke-v1';
-        self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/'])));self.skipWaiting()});
+        const CACHE='pokke-v2';
+        const BASE='/pokke/';
+        self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll([BASE])));self.skipWaiting()});
         self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
         self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
       `;
@@ -242,7 +243,8 @@ function useManifest() {
       name: "Pokke — NFC Contact Capture",
       short_name: "Pokke",
       description: "NFCタッチで名刺情報を自動取得・管理",
-      start_url: "/",
+      start_url: "/pokke/",
+      scope: "/pokke/",
       display: "standalone",
       orientation: "portrait",
       background_color: "#0D0F14",
@@ -697,7 +699,7 @@ export default function App() {
   const loadContacts = useCallback(async () => { try { setContacts(await dbGetAll()); } catch (e) { console.error(e); } }, []);
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
-  const handleScanned = async (url) => {
+  const handleScanned = useCallback(async (url) => {
     setLoading(true);
     try {
       const ogp = await fetchOGP(url);
@@ -705,7 +707,23 @@ export default function App() {
       setScreen({ type: "confirm", data: { id: uuid(), sourceUrl: url, sourceType: ogp.sourceType || "other", name: ogp.name || "", avatarUrl: ogp.avatarUrl || null, avatarBase64: null, company: "", title: "", email: "", phone: "", links: ogp.links || [], capturedAt: new Date().toISOString(), location: loc || { latlng: null, placeName: null }, memo: "", tags: [] } });
     } catch (e) { console.error(e); }
     setLoading(false);
-  };
+  }, []);
+
+  // --- Auto-detect ?url= parameter (NFC auto-launch) ---
+  const urlProcessedRef = useRef(false);
+  useEffect(() => {
+    if (urlProcessedRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const incomingUrl = params.get("url");
+    if (incomingUrl && incomingUrl.startsWith("http")) {
+      urlProcessedRef.current = true;
+      // Clean URL from address bar
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      // Auto-process the contact
+      handleScanned(incomingUrl);
+    }
+  }, [handleScanned]);
 
   const handleManualAdd = () => setScreen({ type: "confirm", data: { id: uuid(), sourceUrl: "", sourceType: "other", name: "", avatarUrl: null, avatarBase64: null, company: "", title: "", email: "", phone: "", links: [], capturedAt: new Date().toISOString(), location: { latlng: null, placeName: null }, memo: "", tags: [] } });
   const handleSave = async (c) => { await dbPut(c); await loadContacts(); setScreen({ type: "tabs" }); setTab("contacts"); };
