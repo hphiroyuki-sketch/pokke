@@ -218,49 +218,11 @@ function usePWAInstall() {
   return { canInstall: !!installPrompt && !isInstalled && !dismissed, isInstalled, install, dismiss: () => setDismissed(true) };
 }
 
-function useServiceWorker() {
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      const swCode = `
-        const CACHE='pokke-v2';
-        const BASE='/pokke/';
-        self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll([BASE])));self.skipWaiting()});
-        self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});
-        self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
-      `;
-      const blob = new Blob([swCode], { type: "application/javascript" });
-      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
-    }
-  }, []);
-}
+// Service Worker is now registered via index.html with /pokke/sw.js
 
 const POKKE_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0D0F14"/><rect x="96" y="120" width="220" height="200" rx="28" fill="none" stroke="#3DEFE9" stroke-width="7"/><circle cx="192" cy="196" r="32" fill="none" stroke="#3DEFE9" stroke-width="6"/><path d="M142 288Q142 254 192 246Q242 254 242 288" fill="none" stroke="#3DEFE9" stroke-width="6" stroke-linecap="round"/><circle cx="340" cy="220" r="12" fill="#3DEFE9"/><path d="M358 182A48 48 0 01358 258" fill="none" stroke="#3DEFE9" stroke-width="6" stroke-linecap="round" opacity=".5"/><path d="M378 158A78 78 0 01378 282" fill="none" stroke="#3DEFE9" stroke-width="6" stroke-linecap="round" opacity=".65"/><path d="M398 134A108 108 0 01398 306" fill="none" stroke="#3DEFE9" stroke-width="6" stroke-linecap="round" opacity=".8"/><text x="256" y="408" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="68" letter-spacing="5" fill="#3DEFE9">Pokke</text></svg>`;
 
-function useManifest() {
-  useEffect(() => {
-    if (document.querySelector('link[rel="manifest"]')) return;
-    const manifest = {
-      name: "Pokke — NFC Contact Capture",
-      short_name: "Pokke",
-      description: "NFCタッチで名刺情報を自動取得・管理",
-      start_url: "/pokke/",
-      scope: "/pokke/",
-      display: "standalone",
-      orientation: "portrait",
-      background_color: "#0D0F14",
-      theme_color: "#3DEFE9",
-      categories: ["business", "productivity"],
-      icons: [{ src: "data:image/svg+xml," + encodeURIComponent(POKKE_ICON_SVG), sizes: "any", type: "image/svg+xml" }],
-    };
-    const link = document.createElement("link");
-    link.rel = "manifest";
-    link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/json" }));
-    document.head.appendChild(link);
-    let meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) { meta = document.createElement("meta"); meta.name = "theme-color"; document.head.appendChild(meta); }
-    meta.content = "#0D0F14";
-  }, []);
-}
+// Manifest is now a static file at /pokke/manifest.json, linked in index.html
 
 // --- SVG Icons ---
 const Icon = ({ d, size = 20, color = "currentColor", ...props }) => (
@@ -693,8 +655,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const pwa = usePWAInstall();
-  useServiceWorker();
-  useManifest();
+  // Service Worker and Manifest are now static files (sw.js, manifest.json)
 
   const loadContacts = useCallback(async () => { try { setContacts(await dbGetAll()); } catch (e) { console.error(e); } }, []);
   useEffect(() => { loadContacts(); }, [loadContacts]);
@@ -709,12 +670,18 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  // --- Auto-detect ?url= parameter (NFC auto-launch) ---
+  // --- Auto-detect ?url= / ?text= parameter (NFC auto-launch + Web Share Target) ---
   const urlProcessedRef = useRef(false);
   useEffect(() => {
     if (urlProcessedRef.current) return;
     const params = new URLSearchParams(window.location.search);
-    const incomingUrl = params.get("url");
+    // Share Target may pass URL in 'url', 'text', or 'title' param
+    let incomingUrl = params.get("url");
+    if (!incomingUrl || !incomingUrl.startsWith("http")) {
+      const text = params.get("text") || params.get("title") || "";
+      const m = text.match(/https?:\/\/[^\s]+/);
+      if (m) incomingUrl = m[0];
+    }
     if (incomingUrl && incomingUrl.startsWith("http")) {
       urlProcessedRef.current = true;
       // Clean URL from address bar

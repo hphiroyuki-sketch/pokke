@@ -1,0 +1,29 @@
+{
+  "name": "Pokke — NFC Contact Capture",
+  "short_name": "Pokke",
+  "description": "NFCタッチで名刺情報を自動取得・管理",
+  "start_url": "/pokke/",
+  "scope": "/pokke/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D0F14",
+  "theme_color": "#3DEFE9",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "share_target": {
+    "action": "/pokke/",
+    "method": "GET",
+    "params": {
+      "url": "url",
+      "title": "title",
+      "text": "text"
+    }
+  }
+}
