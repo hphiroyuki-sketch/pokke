@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { isNative, isNFCAvailable, startNFCScan } from "./nfc-bridge.js";
 
 // ============================================================
-// Pokke — NFC Contact Capture App (PWA Edition)
+// Pokke — NFC Contact Capture App (Capacitor + PWA)
 // ============================================================
 
 // --- Utility: UUID ---
@@ -374,11 +375,16 @@ function InstallBanner({ onInstall, onDismiss }) {
 function ScanScreen({ onContactScanned, onManualAdd }) {
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState("タッチしてスキャン開始");
-  const [nfcSupported] = useState(() => "NDEFReader" in window);
-  const abortRef = useRef(null);
+  const [nfcSupported, setNfcSupported] = useState(false);
+  const cancelRef = useRef(null);
+
+  useEffect(() => {
+    isNFCAvailable().then(setNfcSupported);
+  }, []);
 
   const startScan = useCallback(async () => {
-    if (!nfcSupported) {
+    if (!nfcSupported && !isNative()) {
+      // Demo mode for desktop/unsupported browsers
       setScanning(true); setStatus("デモモード：NFC読み取り中...");
       setTimeout(() => {
         const urls = ["https://lit.link/tanakayuki", "https://linktr.ee/satokana", "https://www.instagram.com/demo_user", "https://www.linkedin.com/in/yamada-taro"];
@@ -387,32 +393,24 @@ function ScanScreen({ onContactScanned, onManualAdd }) {
       }, 2000);
       return;
     }
-    try {
-      const ndef = new window.NDEFReader();
-      abortRef.current = new AbortController();
-      await ndef.scan({ signal: abortRef.current.signal });
-      setScanning(true); setStatus("NFCカードをかざしてください...");
-      ndef.addEventListener("reading", ({ message }) => {
-        for (const record of message.records) {
-          const url = extractNFCUrl(record);
-          if (url && url.startsWith("http")) {
-            setScanning(false); setStatus("読み取り完了！");
-            abortRef.current?.abort(); onContactScanned(url); return;
-          }
-        }
-        if (message.records.length > 0) {
-          try { const t = new TextDecoder().decode(message.records[0].data); if (t) { setScanning(false); setStatus("テキストデータを検出"); onContactScanned(t); return; } } catch {}
-        }
-        setStatus("URLが見つかりませんでした。もう一度タッチしてください。");
-      });
-      ndef.addEventListener("readingerror", () => setStatus("読み取りエラー。もう一度タッチしてください。"));
-    } catch (e) {
-      setStatus(e.name === "NotAllowedError" ? "NFC許可が必要です。ブラウザ設定を確認してください。" : "NFCエラー: " + e.message);
-      setScanning(false);
-    }
+
+    setScanning(true);
+    setStatus(isNative() ? "NFCカードをかざしてください..." : "NFCカードをかざしてください...");
+
+    cancelRef.current = startNFCScan({
+      onRead: ({ url }) => {
+        setScanning(false);
+        setStatus("読み取り完了！");
+        onContactScanned(url);
+      },
+      onError: ({ message }) => {
+        setScanning(false);
+        setStatus(message);
+      },
+    });
   }, [nfcSupported, onContactScanned]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => cancelRef.current?.(), []);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, padding: 24 }}>
