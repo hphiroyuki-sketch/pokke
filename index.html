@@ -7,14 +7,22 @@
   <meta name="description" content="Pokke — NFCタッチで名刺情報を自動取得・管理するPWAアプリ" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/pokke/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/pokke/icon.svg" />
+  <link rel="apple-touch-icon" href="/pokke/icon.svg" />
   <title>Pokke — NFC Contact Capture</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { margin: 0; background: #0D0F14; }
   </style>
-  <script type="module" crossorigin src="/pokke/assets/index-De_plOj3.js"></script>
+  <script type="module" crossorigin src="/pokke/assets/index-DUvW7AFM.js"></script>
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/pokke/sw.js', { scope: '/pokke/' }).catch(() => {});
+    }
+  </script>
 </body>
 </html>
