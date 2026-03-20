@@ -731,10 +731,11 @@ export default function App() {
   const handleClearAll = async () => { await dbClear(); await loadContacts(); };
 
   return (
-    <div style={{ fontFamily: "'Noto Sans JP','Helvetica Neue',sans-serif", background: C.bg, color: C.text, height: "100vh", width: "100%", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+    <div className="pokke-root" style={{ fontFamily: "'Noto Sans JP','Helvetica Neue',sans-serif", background: C.bg, color: C.text, height: "100vh", width: "100%", maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}body{margin:0;background:${C.bg}}
+        .pokke-root{padding-top:env(safe-area-inset-top,0px)}
         input:focus,textarea:focus{border-color:${C.accent}!important}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px}
         ::placeholder{color:${C.textDim}}
